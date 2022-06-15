@@ -1,5 +1,5 @@
 package com.flush.FlushVideo.Controller;
-import com.flush.FlushVideo.model.Auth;
+import com.flush.FlushVideo.help.Auth;
 import com.flush.FlushVideo.model.Token;
 import com.flush.FlushVideo.model.User;
 import com.flush.FlushVideo.model.UserModel;
@@ -9,14 +9,12 @@ import com.flush.FlushVideo.repository.UserRepository;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
+
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import javax.servlet.http.HttpServletResponse;
-import java.io.*;
 
 
 @CrossOrigin(origins = "http://localhost:4200")
@@ -27,107 +25,100 @@ public class UserController {
 	/** The JPA repository */
     @Autowired
     private UserRepository userRepository;
-       
-    @GetMapping("/manual")
-    void manual(HttpServletResponse response) throws IOException {
-        response.setHeader("Custom-Header", "foo");
-        response.setStatus(200);
-        response.getWriter().println("Hello World!");
-    }
-    
-    /*@GetMapping("/token")
-    void getToken(HttpServletResponse response,@RequestParam(required = false)String token)throws IOException{
-    	
-    	Token tk=Auth.getToken(token);
-    	UserModel userModel=new UserModel();
-		
-		
-    	Date date = new Date();
-        Long ora = date.getTime();
-    	//return new ResponseEntity<>(new UserModel(Auth.getToken(token).getUser()), HttpStatus.OK);   
-        
-        response.setHeader("Custom-Header", "foo");
-        response.setStatus(200);
-        response.getWriter().print(Auth.getToken(token).getUser());
-    }
-    */
-   
+
      @GetMapping("/token")
-    public ResponseEntity<UserModel> getToken(@RequestParam(required = false)String token){
+
+    public ResponseEntity getToken(@RequestHeader("token") String token){
     	
-    	Token tk=Auth.getToken(token);
-    	UserModel userModel=new UserModel();
-		
+    	Token tk= Auth.getToken(token);
+
+		Optional<User> _user=userRepository.findById(tk.getUser().getId());
+
+
+		if(!_user.isPresent() || !tk.getUser().equals(_user.get())){
+			//token valido ma che non contiene un utente nel db
+			return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("User dentro token invalido");
+		}
+
+
 		if(tk==null){
-			userModel.setError("Token invalido");
 			//token sbagliato
-			return new ResponseEntity<>(userModel,HttpStatus.UNAUTHORIZED );
+			return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("token invalido");
+			//return new ResponseEntity<>(userModel,HttpStatus.UNAUTHORIZED );
 		}
 		if(tk.getError().equals("Token scaduto")) {
 			//token scaduto
-			userModel.setError("Token scaduto");
-			return new ResponseEntity<>(userModel,HttpStatus.UNAUTHORIZED );
+			return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("token scaduto");
+			//return new ResponseEntity<>(userModel,HttpStatus.UNAUTHORIZED );
 		}
-    	Date date = new Date();
-        Long ora = date.getTime();
-    	return new ResponseEntity<>(new UserModel(Auth.getToken(token).getUser()), HttpStatus.OK);       
+
+    	//return new ResponseEntity<>(new UserModel(Auth.getToken(token).getUser()), HttpStatus.OK);
+		 return ResponseEntity.ok(new UserModel(Auth.getToken(token).getUser()));
     }
      
     
     
     @GetMapping("/users")
-    public ResponseEntity<List<User>> getAllUsers(@RequestParam(required = false)String nome,
-    		@RequestHeader("token") String token){
+    public ResponseEntity getAllUsers(@RequestHeader("token") String token){
         try {
         	Token tk=Auth.getToken(token);
+
+			Optional<User> _user=userRepository.findById(tk.getUser().getId());
+			
+			if(!_user.isPresent() || !tk.getUser().equals(_user.get())){
+				//token valido ma che non contiene un utente nel db
+				return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("User dentro token invalido");
+			}
     		
     		if(tk==null){
     			//token sbagliato
-    			return new ResponseEntity<>(HttpStatus.UNAUTHORIZED );
+				return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("token invalido");
+				//return new ResponseEntity<>(HttpStatus.UNAUTHORIZED );
     		}
     		if(tk.getError().equals("Token scaduto")) {
     			//token scaduto
-    			return new ResponseEntity<>(HttpStatus.UNAUTHORIZED );
-    		
-        	
-        	
+				return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("token scaduto");
+    			//return new ResponseEntity<>(HttpStatus.UNAUTHORIZED );
     		}
     		
 			List<User> users = new ArrayList<User>();
+			List <UserModel>ret = new ArrayList<UserModel>();
 
-			if (nome == null)
-				userRepository.findAll().forEach(users::add);
-			else
-				userRepository.findByNome(nome).forEach(users::add);
+			userRepository.findAll().forEach(users::add);
+
+			users.forEach(user -> {ret.add(new UserModel(user));});
 
 			if (users.isEmpty()) {
-				return new ResponseEntity<>(HttpStatus.NO_CONTENT);
+				//return new ResponseEntity<>(HttpStatus.NO_CONTENT);
+				return ResponseEntity.noContent().build();
 			}
 
-			return new ResponseEntity<>(users, HttpStatus.OK);
+			//return new ResponseEntity<>(users, HttpStatus.OK);
+			return ResponseEntity.ok(ret);
 		}catch (Exception e) {
-			return new ResponseEntity<>(null, HttpStatus.INTERNAL_SERVER_ERROR);
+			return ResponseEntity.internalServerError().build();
 		}
     }
      
     @PostMapping("/users")
-    public ResponseEntity<User> createUser(@RequestBody User user) {
+    public ResponseEntity createUser(@RequestBody User user) {
 		try {
 			
 			Optional<User> getUser=userRepository.findByEmail(user.getEmail());
 			if(getUser.isPresent()) {
-				return new ResponseEntity<>(HttpStatus.IM_USED);
+				//return new ResponseEntity<>(HttpStatus.IM_USED);
+				return ResponseEntity.status(HttpStatus.IM_USED).body("email già usata");
 			}
 			User _user = userRepository
-					.save(new User(0, user.getNome(), user.getCognome(), user.getEmail(), user.getPassword(), user.getRuolo()));
-			return new ResponseEntity<>(_user, HttpStatus.CREATED);
+					.save(new User(0, user.getNome(), user.getCognome(), user.getEmail(), user.getPassword(), 1));
+			return ResponseEntity.ok(_user);
 		} catch (Exception e) {
-			return new ResponseEntity<>(null, HttpStatus.INTERNAL_SERVER_ERROR);
+			return ResponseEntity.internalServerError().build();
 		}
 	}
     
     @PostMapping("/login")
-    public ResponseEntity<String> checkUser(@RequestParam(required = true)String email,String password){
+    public ResponseEntity checkUser(@RequestParam(required = true)String email,String password){
     	try {
     		
 			Optional<User> user = userRepository.findByEmail(email) ;
@@ -140,61 +131,41 @@ public class UserController {
 					String token=Auth.createToken(user.get());
 					
 					if(token==null) {
-						return new ResponseEntity<>(null, HttpStatus.INTERNAL_SERVER_ERROR);
+						return ResponseEntity.internalServerError().build();
 					}
-					return new ResponseEntity<>( token, HttpStatus.OK);
+					return ResponseEntity.ok(token);
 				}
 				else{
-					return new ResponseEntity<>(HttpStatus.UNAUTHORIZED );
+					return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("password sbagliata");
 				}
 				 
 			}else {
-				return new ResponseEntity<>(HttpStatus.NO_CONTENT);
+				return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("email sbagliata");
 			}
 			
 			
 			
 		}catch (Exception e) {
-			return new ResponseEntity<>(null, HttpStatus.INTERNAL_SERVER_ERROR);
+			return ResponseEntity.internalServerError().build();
 		}
 		
   
     }
     
 
-    
-    
-    @GetMapping("/users/{idutente}")
-	public ResponseEntity<User> getUserById(@PathVariable("idutente") long id) {
-		Optional<User> documentiData = userRepository.findById(id);
 
-		if (documentiData.isPresent()) {
-			return new ResponseEntity<>(documentiData.get(), HttpStatus.OK);
-		} else {
-			return new ResponseEntity<>(HttpStatus.NOT_FOUND);
-		}
-	}
 
 	@DeleteMapping("/users/{id}")
-	public ResponseEntity<HttpStatus> deleteUser(@PathVariable("id") long id) {
+	public ResponseEntity deleteUser(@PathVariable("id") long id) {
 		try {
 			userRepository.deleteById(id);
-			return new ResponseEntity<>(HttpStatus.NO_CONTENT);
+			return ResponseEntity.ok("ok");
 		} catch (Exception e) {
-			return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
+			return ResponseEntity.internalServerError().build();
 		}
 	}
 
-	@DeleteMapping("/users")
-	public ResponseEntity<HttpStatus> deleteAllUsers() {
-		try {
-			userRepository.deleteAll();
-			return new ResponseEntity<>(HttpStatus.NO_CONTENT);
-		} catch (Exception e) {
-			return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
-		}
 
-	}
 	
    
 

@@ -3,6 +3,7 @@ package com.flush.FlushVideo.model;
 
 import java.time.LocalDateTime;
 import java.util.Date;
+import java.util.Objects;
 
 import javax.persistence.*;
 
@@ -124,6 +125,16 @@ public class User {
 				+ password + ", ruolo=" + ruolo + "]";
 	}
 
+	@Override
+	public boolean equals(Object o) {
+		if (this == o) return true;
+		if (o == null || getClass() != o.getClass()) return false;
+		User user = (User) o;
+		return id == user.id && ruolo == user.ruolo && Objects.equals(nome, user.nome) && Objects.equals(cognome, user.cognome) && Objects.equals(email, user.email) && Objects.equals(password, user.password);
+	}
 
-
+	@Override
+	public int hashCode() {
+		return Objects.hash(id, nome, cognome, email, password, ruolo);
+	}
 }

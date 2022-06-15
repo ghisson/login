@@ -24,8 +24,7 @@ public class UserModel {
 
     private int ruolo;
     
-    private String error;
-    
+
     public enum Day { 
 
         ERRORE(0), UTENTE(1), ADMIN(2),
@@ -64,8 +63,7 @@ public class UserModel {
 		this.email = user.getEmail();
 		this.password = user.getPassword();
 		this.ruolo = user.getRuolo();	
-		error="";
-    	
+
     }
 	public long getId() {
 		return id;
@@ -106,11 +104,6 @@ public class UserModel {
 	public void setRuolo(int ruolo) {
 		this.ruolo = ruolo;
 	}
-	public String getError() {
-		return error;
-	}
-	public void setError(String error) {
-		this.error = error;
-	}
+
 
 }
